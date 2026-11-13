@@ -1,8 +1,9 @@
 "use client";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { API, type LoginError, type LoginStatus } from "@/lib/routes";
 
-const MESSAGES: Record<string, { tone: "info" | "error"; title: string; body: string }> = {
+const MESSAGES: Record<LoginStatus | LoginError, { tone: "info" | "error"; title: string; body: string }> = {
   pending: {
     tone: "info",
     title: "参加申請を受け付けました",
@@ -28,7 +29,7 @@ const MESSAGES: Record<string, { tone: "info" | "error"; title: string; body: st
 function LoginInner() {
   const params = useSearchParams();
   const key = params.get("status") ?? params.get("error");
-  const msg = key ? MESSAGES[key] : null;
+  const msg = key && key in MESSAGES ? MESSAGES[key as keyof typeof MESSAGES] : null;
 
   return (
     <main className="flex min-h-full items-center justify-center bg-sidebar px-4 py-10">
@@ -51,7 +52,7 @@ function LoginInner() {
         )}
 
         <a
-          href="/api/auth/google"
+          href={API.authGoogle}
           className="flex w-full items-center justify-center gap-3 rounded-md border border-black/15 bg-white py-2.5 text-sm font-medium hover:bg-hover"
         >
           <GoogleLogo />

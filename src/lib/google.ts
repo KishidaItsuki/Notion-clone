@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { decodeJwt } from "jose";
+import { API } from "./routes";
 
 // 通常は変更不要（ローカルでの動作テスト時のみ上書きできるようにしている）
 const AUTH_ENDPOINT = process.env.GOOGLE_AUTH_ENDPOINT || "https://accounts.google.com/o/oauth2/v2/auth";
@@ -16,7 +17,7 @@ export function googleConfig() {
 }
 
 export function redirectUri(base: string) {
-  return `${base}/api/auth/google/callback`;
+  return `${base}${API.authGoogleCallback}`;
 }
 
 const b64url = (buf: Buffer) => buf.toString("base64url");

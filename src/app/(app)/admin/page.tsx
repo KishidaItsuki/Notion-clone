@@ -5,6 +5,7 @@ import { Check, ShieldCheck, UserX, X } from "lucide-react";
 import { api, useMe } from "@/lib/client";
 import type { AdminUser } from "@/lib/types";
 import { formatDate } from "@/components/ui";
+import { API } from "@/lib/routes";
 
 const TABS = [
   { key: "pending", label: "承認待ち" },
@@ -21,7 +22,7 @@ const STATUS_LABEL: Record<AdminUser["status"], string> = {
 
 export default function AdminPage() {
   const { data: me } = useMe();
-  const { data: users, mutate } = useSWR<AdminUser[]>(me?.role === "admin" ? "/api/admin/users" : null, (u: string) =>
+  const { data: users, mutate } = useSWR<AdminUser[]>(me?.role === "admin" ? API.adminUsers : null, (u: string) =>
     api<AdminUser[]>(u),
   );
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("pending");
@@ -35,10 +36,10 @@ export default function AdminPage() {
     if (confirmText && !confirm(confirmText)) return;
     setError("");
     try {
-      await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: patch });
+      await api(API.adminUser(u.id), { method: "PATCH", body: patch });
       await mutate();
-      globalMutate("/api/me");
-      globalMutate("/api/members");
+      globalMutate(API.me);
+      globalMutate(API.members);
     } catch (e) {
       setError((e as Error).message);
     }

@@ -5,19 +5,20 @@ import useSWR from "swr";
 import { Database, FilePlus } from "lucide-react";
 import { api, createPage, displayTitle, useMe } from "@/lib/client";
 import { PageIcon, formatDate } from "@/components/ui";
+import { API, ROUTES } from "@/lib/routes";
 
 type Recent = { id: string; title: string; icon: string | null; type: string; updatedAt: number };
 
 export default function Home() {
   const router = useRouter();
   const { data: me } = useMe();
-  const { data: recent } = useSWR<Recent[]>("/api/search?q=", (u: string) => api<Recent[]>(u), {
+  const { data: recent } = useSWR<Recent[]>(API.search(""), (u: string) => api<Recent[]>(u), {
     refreshInterval: 10000,
   });
 
   const add = async (type: "page" | "database") => {
     const id = await createPage({ type, title: type === "database" ? "新しいデータベース" : "" });
-    router.push(`/p/${id}`);
+    router.push(ROUTES.page(id));
   };
 
   const hour = new Date().getHours();
@@ -49,7 +50,7 @@ export default function Home() {
         {recent?.slice(0, 9).map((p) => (
           <Link
             key={p.id}
-            href={`/p/${p.id}`}
+            href={ROUTES.page(p.id)}
             className="rounded-xl border border-line p-4 transition hover:shadow-sm hover:bg-hover"
           >
             <PageIcon icon={p.icon} type={p.type} className="text-2xl" />

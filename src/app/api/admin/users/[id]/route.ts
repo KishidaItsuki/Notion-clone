@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
+import { ERROR_MESSAGES } from "@/lib/api-error";
 import { HttpError, isConfiguredAdmin, withAdmin } from "@/lib/server";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -15,7 +16,7 @@ const Body = z.object({
 export const PATCH = withAdmin<Ctx>(async (req, me, { params }) => {
   const { id } = await params;
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) throw new HttpError(400, "入力が不正です");
+  if (!parsed.success) throw new HttpError(400, ERROR_MESSAGES.badRequest);
   const { status, role } = parsed.data;
 
   const target = db.select().from(schema.users).where(eq(schema.users.id, id)).get();

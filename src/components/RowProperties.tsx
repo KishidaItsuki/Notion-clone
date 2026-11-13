@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { refreshPage, updatePage } from "@/lib/client";
 import { PROPERTY_TYPE_LABELS, type Property } from "@/lib/types";
 import { PropertyInput } from "./PropertyInput";
+import { ROUTES } from "@/lib/routes";
 
 /** データベースの行をページとして開いたときのプロパティ一覧 */
 export function RowProperties({
@@ -47,7 +48,7 @@ export function RowProperties({
         </div>
       ))}
       <Link
-        href={`/p/${databaseId}`}
+        href={ROUTES.page(databaseId)}
         className="mt-2 inline-flex items-center gap-1 px-2 text-xs text-muted hover:underline"
       >
         <ArrowUpRight size={12} /> データベースに戻る

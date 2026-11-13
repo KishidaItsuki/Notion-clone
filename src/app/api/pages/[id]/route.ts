@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { ERROR_MESSAGES } from "@/lib/api-error";
 import {
   HttpError,
   breadcrumbs,
@@ -104,10 +105,11 @@ export const PATCH = withUser<Ctx>(async (req, user, { params }) => {
       p.updatedAt.getTime() > body.baseUpdatedAt &&
       p.updatedById !== user.id
     ) {
-      return NextResponse.json(
-        { error: "conflict", updatedBy: userName(p.updatedById), updatedAt: p.updatedAt.getTime() },
-        { status: 409 },
-      );
+      throw new HttpError(409, ERROR_MESSAGES.conflict, {
+        reason: "conflict",
+        updatedBy: userName(p.updatedById),
+        updatedAt: p.updatedAt.getTime(),
+      });
     }
     update.content = JSON.stringify(body.content);
     update.plainText = extractPlainText(body.content);

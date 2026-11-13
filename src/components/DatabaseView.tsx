@@ -36,9 +36,10 @@ import {
 } from "@/lib/types";
 import { MenuItem, PageIcon, Popover } from "./ui";
 import { PropertyDisplay, PropertyInput, Tag } from "./PropertyInput";
+import { API, ROUTES } from "@/lib/routes";
 
 export function DatabaseView({ page, readOnly }: { page: PageDetail; readOnly: boolean }) {
-  const key = `/api/pages/${page.id}`;
+  const key = API.page(page.id);
   const properties = page.properties;
   const rows = page.rows ?? [];
   const view = page.viewConfig.view ?? "table";
@@ -304,7 +305,7 @@ function TableView({
                   <PageIcon icon={r.icon} className="ml-2 w-5 text-sm" />
                   <TitleCell value={r.title} readOnly={readOnly} onChange={(title) => onPatchRow(r.id, { title })} />
                   <Link
-                    href={`/p/${r.id}`}
+                    href={ROUTES.page(r.id)}
                     className="mr-1 flex shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-muted opacity-0 ring-1 ring-line hover:bg-hover group-hover:opacity-100"
                   >
                     <ArrowUpRight size={12} />
@@ -734,7 +735,7 @@ function BoardCard({ row, properties, readOnly }: { row: RowRecord; properties: 
       style={style}
       {...listeners}
       {...attributes}
-      onClick={() => !isDragging && router.push(`/p/${row.id}`)}
+      onClick={() => !isDragging && router.push(ROUTES.page(row.id))}
       className={`cursor-pointer rounded-md bg-white p-2.5 text-sm shadow-sm ring-1 ring-black/10 hover:bg-[#fafafa] ${
         isDragging ? "z-50 rotate-1 opacity-90 shadow-lg" : ""
       }`}

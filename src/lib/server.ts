@@ -1,10 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db, schema } from "./db";
 import { SESSION_COOKIE, verifySession } from "./session";
+import { ERROR_MESSAGES, HttpError, apiError, serverError, unauthorized } from "./api-error";
 import type { PageRow } from "./db/schema";
 
 export const newId = () => randomUUID();
@@ -25,11 +25,8 @@ export async function currentUser() {
   return (await sessionUser()).user;
 }
 
-export class HttpError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
-}
+// 既存のルートハンドラが "@/lib/server" から import しているため再エクスポート
+export { HttpError };
 
 /** ルートハンドラ共通ラッパー: 認証済みユーザーを渡し、エラーをJSONに変換 */
 export function withUser<C>(
@@ -39,16 +36,16 @@ export function withUser<C>(
     try {
       const { user, reason } = await sessionUser();
       if (!user) {
-        const res = NextResponse.json({ error: "ログインが必要です", reason }, { status: 401 });
+        const res = unauthorized(reason);
         // 利用停止などで無効になったセッションは破棄する
         if (reason !== "no_session") res.cookies.delete(SESSION_COOKIE);
         return res;
       }
       return await fn(req, user, ctx);
     } catch (e) {
-      if (e instanceof HttpError) return NextResponse.json({ error: e.message }, { status: e.status });
+      if (e instanceof HttpError) return apiError(e.status, e.message, e.extra);
       console.error(e);
-      return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
+      return serverError();
     }
   };
 }
@@ -58,7 +55,7 @@ export function withAdmin<C>(
   fn: (req: Request, user: NonNullable<Awaited<ReturnType<typeof currentUser>>>, ctx: C) => Promise<Response>,
 ) {
   return withUser<C>(async (req, user, ctx) => {
-    if (user.role !== "admin") throw new HttpError(403, "管理者のみ操作できます");
+    if (user.role !== "admin") throw new HttpError(403, ERROR_MESSAGES.adminOnly);
     return fn(req, user, ctx);
   });
 }
@@ -74,7 +71,7 @@ export function isConfiguredAdmin(email: string) {
 
 export function getPageOr404(id: string): PageRow {
   const p = db.select().from(schema.pages).where(eq(schema.pages.id, id)).get();
-  if (!p) throw new HttpError(404, "ページが見つかりません");
+  if (!p) throw new HttpError(404, ERROR_MESSAGES.pageNotFound);
   return p;
 }
 

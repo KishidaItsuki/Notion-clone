@@ -18,6 +18,7 @@ import type { PageDetail } from "@/lib/types";
 import { EmojiPicker, MenuItem, PageIcon, Popover, formatDate } from "./ui";
 import { DatabaseView } from "./DatabaseView";
 import { RowProperties } from "./RowProperties";
+import { API, ROUTES } from "@/lib/routes";
 
 const Editor = dynamic(() => import("./Editor"), {
   ssr: false,
@@ -89,7 +90,7 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
         setSaveState("saved");
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
-          setConflict({ updatedBy: (e.data as { updatedBy?: string })?.updatedBy ?? null });
+          setConflict({ updatedBy: (e.data?.updatedBy as string | undefined) ?? null });
           setSaveState("saved");
         } else {
           setSaveState("error");
@@ -104,7 +105,7 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
     const flush = () => {
       if (pendingBlocks.current) {
         navigator.sendBeacon?.(
-          `/api/pages/${page.id}/beacon`,
+          API.pageBeacon(page.id),
           new Blob([JSON.stringify({ content: pendingBlocks.current })], { type: "application/json" }),
         );
       }
@@ -150,7 +151,7 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
     dirty.current = false;
     setConflict(null);
     setRemotePending(null);
-    const fresh = await api<PageDetail>(`/api/pages/${page.id}`);
+    const fresh = await api<PageDetail>(API.page(page.id));
     baseUpdatedAt.current = fresh.updatedAt;
     setEditorContent(fresh.content);
     setEditorKey((k) => k + 1);
@@ -158,14 +159,14 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
   };
 
   const restore = async () => {
-    await api(`/api/pages/${page.id}/restore`, { method: "POST" });
+    await api(API.pageRestore(page.id), { method: "POST" });
     mutate();
     refreshTree();
   };
   const destroy = async () => {
     if (!confirm("このページを完全に削除します。元に戻せません。")) return;
-    await api(`/api/pages/${page.id}?permanent=1`, { method: "DELETE" });
-    router.push("/");
+    await api(API.pagePermanentDelete(page.id), { method: "DELETE" });
+    router.push(ROUTES.home);
   };
 
   const isDb = page.type === "database";
@@ -178,7 +179,7 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
           {page.breadcrumbs.map((c, i) => (
             <span key={c.id} className="flex min-w-0 items-center gap-1">
               {i > 0 && <span className="text-muted">/</span>}
-              <Link href={`/p/${c.id}`} className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-hover">
+              <Link href={ROUTES.page(c.id)} className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-hover">
                 <PageIcon icon={c.id === page.id ? page.icon : c.icon} type={c.type} />
                 <span className="max-w-40 truncate">{displayTitle(c.id === page.id ? title : c.title)}</span>
               </Link>

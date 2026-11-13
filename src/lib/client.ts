@@ -1,9 +1,11 @@
 "use client";
 import useSWR, { mutate } from "swr";
 import type { Me, Member, PageDetail, TreeNode } from "./types";
+import type { ApiErrorBody } from "./api-error";
+import { API, loginUrl } from "./routes";
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public data?: unknown) {
+  constructor(public status: number, message: string, public data?: ApiErrorBody) {
     super(message);
   }
 }
@@ -15,11 +17,11 @@ export async function api<T = unknown>(url: string, opts: { method?: string; bod
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && typeof window !== "undefined" && !url.startsWith("/api/auth")) {
-    const reason = (data as { reason?: string }).reason;
-    window.location.href = reason === "disabled" || reason === "rejected" ? `/login?status=${reason}` : "/login";
+  if (res.status === 401 && typeof window !== "undefined" && !url.startsWith(API.authPrefix)) {
+    const reason = (data as ApiErrorBody).reason;
+    window.location.href = reason === "disabled" || reason === "rejected" ? loginUrl({ status: reason }) : loginUrl();
   }
-  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? "エラーが発生しました", data);
+  if (!res.ok) throw new ApiError(res.status, (data as ApiErrorBody).error ?? "エラーが発生しました", data as ApiErrorBody);
   return data as T;
 }
 
@@ -34,23 +36,23 @@ export type TreeData = {
 };
 
 export function useTree() {
-  return useSWR<TreeData>("/api/pages", fetcher<TreeData>, { refreshInterval: POLL_MS });
+  return useSWR<TreeData>(API.pages, fetcher<TreeData>, { refreshInterval: POLL_MS });
 }
 
 export function usePage(id: string | null) {
-  return useSWR<PageDetail>(id ? `/api/pages/${id}` : null, fetcher<PageDetail>, { refreshInterval: POLL_MS });
+  return useSWR<PageDetail>(id ? API.page(id) : null, fetcher<PageDetail>, { refreshInterval: POLL_MS });
 }
 
 export function useMembers() {
-  return useSWR<Member[]>("/api/members", fetcher<Member[]>);
+  return useSWR<Member[]>(API.members, fetcher<Member[]>);
 }
 
 export function useMe() {
-  return useSWR<Me>("/api/me", fetcher<Me>, { refreshInterval: 30000 });
+  return useSWR<Me>(API.me, fetcher<Me>, { refreshInterval: 30000 });
 }
 
-export const refreshTree = () => mutate("/api/pages");
-export const refreshPage = (id: string) => mutate(`/api/pages/${id}`);
+export const refreshTree = () => mutate(API.pages);
+export const refreshPage = (id: string) => mutate(API.page(id));
 
 export async function createPage(opts: {
   parentId?: string | null;
@@ -59,7 +61,7 @@ export async function createPage(opts: {
   title?: string;
   values?: Record<string, unknown>;
 }) {
-  const { id } = await api<{ id: string }>("/api/pages", { body: opts });
+  const { id } = await api<{ id: string }>(API.pages, { body: opts });
   refreshTree();
   if (opts.parentId) refreshPage(opts.parentId);
   if (opts.databaseId) refreshPage(opts.databaseId);
@@ -67,17 +69,17 @@ export async function createPage(opts: {
 }
 
 export async function updatePage(id: string, patch: Record<string, unknown>) {
-  return api<{ ok: true; updatedAt: number }>(`/api/pages/${id}`, { method: "PATCH", body: patch });
+  return api<{ ok: true; updatedAt: number }>(API.page(id), { method: "PATCH", body: patch });
 }
 
 export async function trashPage(id: string) {
-  await api(`/api/pages/${id}`, { method: "DELETE" });
+  await api(API.page(id), { method: "DELETE" });
   refreshTree();
-  mutate("/api/trash");
+  mutate(API.trash);
 }
 
 export async function setFavorite(pageId: string, favorite: boolean) {
-  await api("/api/favorites", { body: { pageId, favorite } });
+  await api(API.favorites, { body: { pageId, favorite } });
   refreshTree();
   refreshPage(pageId);
 }
