@@ -29,6 +29,7 @@ Next.js + SQLite で動く、セルフホスト型の Notion 類似アプリで�
 1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（既存のものでも可）
 2. 「API とサービス」→「OAuth 同意画面」を設定
    - ユーザーの種類は「外部」（Google Workspace の社内だけで使うなら「内部」も可）
+   - ブランディングのプライバシーポリシーには `https://<あなたのドメイン>/privacy` を指定できます（ログイン不要で表示されます）
    - 「外部」でテスト中のままだと、登録したテストユーザーしかログインできません。チームで使う場合は「アプリを公開」にしてください（openid / email / profile のみなので Google の審査は不要です）
 3. 「認証情報」→「認証情報を作成」→「OAuth クライアント ID」
    - アプリケーションの種類: **ウェブ アプリケーション**
@@ -52,13 +53,14 @@ cp .env.example .env
 | `APP_URL` | アプリのURL。ローカルは `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 手順1で控えた値 |
 | `ADMIN_EMAILS` | 管理者の Gmail / Google アカウントのアドレス（カンマ区切りで複数可） |
+| `PRIVACY_OPERATOR_NAME` / `PRIVACY_CONTACT_EMAIL` / `PRIVACY_EFFECTIVE_DATE` | プライバシーポリシー（`/privacy`）に表示する運営者名・連絡先・制定日 |
 
 ```bash
 npm run dev
 ```
 
 http://localhost:3000 を開き、`ADMIN_EMAILS` のアカウントで「Googleでログイン」すると、承認なしで管理者としてログインできます。
-データベースは `data/app.db` に自動作成されるため、マイグレーション作業は不要です。
+データベースは `data/app.db` に自動作成され、テーブルも起動時に自動で作られます（マイグレーションが自動適用されます）。
 
 ### 3. メンバーを招待する
 
@@ -79,9 +81,25 @@ npm start            # ポート変更は PORT=8080 npm start
 - Google ログインは原則 HTTPS が必要です（`localhost` のみ例外）。リバースプロキシ（Caddy / nginx など）で HTTPS 化してください。
 - バックアップは `data/` フォルダ（`app.db` と `-wal` / `-shm` ファイル）をコピーするだけです。
 
+## データベースの変更（マイグレーション）
+
+テーブル定義は `src/lib/db/schema.ts` だけに書きます。変更するときの手順は次のとおりです。
+
+1. `src/lib/db/schema.ts` を編集（列やテーブルの追加など）
+2. `npm run db:generate -- --name <変更内容>` を実行（例: `--name add_cover`）
+   → `drizzle/` に差分の SQL（例: `0001_add_cover.sql`）が自動生成されます
+3. 生成された SQL を確認し、`schema.ts` と一緒に Git にコミット
+4. アプリを起動すると、未適用のマイグレーションが自動で適用されます（本番サーバーも同様）
+
+- `drizzle/` 配下のファイルは手で編集・削除しないでください（適用済みの記録とずれます）。
+- 列の削除や型の変更はデータが失われることがあるため、生成された SQL を必ず確認し、事前に `data/` のバックアップを取ってください。
+- マイグレーション導入前に作られた DB は、初回起動時に「初期マイグレーション適用済み」として自動で記録されます（データはそのまま）。
+
 ## 構成
 
 ```
+drizzle/              マイグレーション（npm run db:generate で自動生成。Git で管理）
+drizzle.config.ts     drizzle-kit の設定
 src/
   app/
     (app)/            ログイン後の画面（サイドバー付きレイアウト）
@@ -98,7 +116,8 @@ src/
     PropertyInput.tsx プロパティのセル編集
     SearchModal.tsx / TrashModal.tsx
   lib/
-    db/               SQLite (better-sqlite3 + Drizzle ORM) スキーマと自動テーブル作成
+    db/schema.ts      テーブル定義（唯一の正）
+    db/index.ts       SQLite 接続（better-sqlite3 + Drizzle ORM）とマイグレーションの自動適用
     session.ts        JWT セッション（jose）
     google.ts         Google OAuth（PKCE・state・nonce 検証）
     server.ts         API 共通処理
@@ -114,4 +133,4 @@ src/
 - Yjs + WebSocket によるリアルタイム共同編集（現在は5秒ポーリング＋競合警告）
 - 画像の外部ストレージ保存（現在はページ内にデータURLで保存、3MBまで）
 - ワークスペース複数化・ページ単位の権限設定
-- PostgreSQL への移行（Drizzle の dialect を変更）
+- PostgreSQL への移行（schema.ts を pg-core に書き換え、マイグレーションを作り直す）

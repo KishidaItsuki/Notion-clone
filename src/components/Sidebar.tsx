@@ -31,6 +31,7 @@ import type { TreeNode } from "@/lib/types";
 import { MenuItem, PageIcon, Popover } from "./ui";
 import { SearchModal } from "./SearchModal";
 import { TrashModal } from "./TrashModal";
+import { API, ROUTES } from "@/lib/routes";
 
 type DropPos = "before" | "after" | "inside";
 
@@ -99,7 +100,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const add = async (type: "page" | "database", parentId: string | null = null) => {
     const id = await createPage({ type, parentId, title: type === "database" ? "新しいデータベース" : "" });
     if (parentId) toggle(parentId, true);
-    router.push(`/p/${id}`);
+    router.push(ROUTES.page(id));
   };
 
   const onDrop = async (dragId: string, target: TreeNode, pos: DropPos) => {
@@ -130,8 +131,8 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   };
 
   const logout = async () => {
-    await api("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    await api(API.authLogout, { method: "POST" });
+    window.location.href = ROUTES.login;
   };
 
   const rootNodes = byParent.get(null) ?? [];
@@ -177,9 +178,9 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
         </SideButton>
         {me?.role === "admin" && (
           <Link
-            href="/admin"
+            href={ROUTES.admin}
             className={`flex w-full items-center gap-2 rounded px-2 py-1 hover:bg-hover ${
-              pathname === "/admin" ? "bg-hover font-medium text-ink" : ""
+              pathname === ROUTES.admin ? "bg-hover font-medium text-ink" : ""
             }`}
           >
             <span className="text-muted">
@@ -202,7 +203,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
             {data.favorites.map((f) => (
               <Link
                 key={f.id}
-                href={`/p/${f.id}`}
+                href={ROUTES.page(f.id)}
                 className={`flex items-center gap-1.5 rounded px-2 py-1 hover:bg-hover ${
                   activeId === f.id ? "bg-hover font-medium text-ink" : ""
                 }`}
@@ -341,7 +342,7 @@ function TreeItem({
         >
           <ChevronRight size={14} className={`transition-transform ${open ? "rotate-90" : ""}`} />
         </button>
-        <Link href={`/p/${node.id}`} className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5">
+        <Link href={ROUTES.page(node.id)} className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5">
           <PageIcon icon={node.icon} type={node.type} className="w-5" />
           <span className="truncate">{displayTitle(node.title)}</span>
         </Link>
@@ -385,7 +386,7 @@ function TreeItem({
           onClick={async () => {
             setMenu(null);
             await trashPage(node.id);
-            if (activeId === node.id) router.push("/");
+            if (activeId === node.id) router.push(ROUTES.home);
           }}
         >
           ゴミ箱へ移動

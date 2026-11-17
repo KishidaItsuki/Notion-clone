@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { api, displayTitle } from "@/lib/client";
 import { Modal, PageIcon, formatDate } from "./ui";
+import { API, ROUTES } from "@/lib/routes";
 
 type Result = {
   id: string;
@@ -23,7 +24,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      api<Result[]>(`/api/search?q=${encodeURIComponent(q)}`).then((r) => {
+      api<Result[]>(API.search(q)).then((r) => {
         setResults(r);
         setSel(0);
       });
@@ -33,7 +34,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
 
   const go = (id: string) => {
     onClose();
-    router.push(`/p/${id}`);
+    router.push(ROUTES.page(id));
   };
 
   const onKey = (e: React.KeyboardEvent) => {

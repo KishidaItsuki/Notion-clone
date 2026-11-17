@@ -4,21 +4,22 @@ import useSWR from "swr";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { api, displayTitle, refreshTree } from "@/lib/client";
 import { Modal, PageIcon, formatDate } from "./ui";
+import { API, ROUTES } from "@/lib/routes";
 
 type Item = { id: string; title: string; icon: string | null; type: string; deletedAt: number };
 
 export function TrashModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { data, mutate } = useSWR<Item[]>("/api/trash", (u: string) => api<Item[]>(u));
+  const { data, mutate } = useSWR<Item[]>(API.trash, (u: string) => api<Item[]>(u));
 
   const restore = async (id: string) => {
-    await api(`/api/pages/${id}/restore`, { method: "POST" });
+    await api(API.pageRestore(id), { method: "POST" });
     mutate();
     refreshTree();
   };
   const destroy = async (item: Item) => {
     if (!confirm(`「${displayTitle(item.title)}」と配下のページを完全に削除します。元に戻せません。よろしいですか？`)) return;
-    await api(`/api/pages/${item.id}?permanent=1`, { method: "DELETE" });
+    await api(API.pagePermanentDelete(item.id), { method: "DELETE" });
     mutate();
   };
 
@@ -33,7 +34,7 @@ export function TrashModal({ onClose }: { onClose: () => void }) {
               className="flex min-w-0 flex-1 items-center gap-2 text-left"
               onClick={() => {
                 onClose();
-                router.push(`/p/${item.id}`);
+                router.push(ROUTES.page(item.id));
               }}
             >
               <PageIcon icon={item.icon} type={item.type} className="w-5" />

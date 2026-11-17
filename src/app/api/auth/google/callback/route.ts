@@ -6,12 +6,13 @@ import { OAUTH_COOKIE, exchangeCode, googleConfig, type GoogleProfile } from "@/
 import { isConfiguredAdmin, newId } from "@/lib/server";
 import { seedWelcomeIfEmpty } from "@/lib/seed";
 import { SESSION_COOKIE, appUrl, cookieOptions, signSession } from "@/lib/session";
+import { API, ROUTES, loginUrl, type LoginError, type LoginStatus } from "@/lib/routes";
 
 export async function GET(req: Request) {
   const base = appUrl(req);
-  const fail = (code: string) => {
-    const res = NextResponse.redirect(`${base}/login?error=${code}`);
-    res.cookies.delete({ name: OAUTH_COOKIE, path: "/api/auth/google" });
+  const fail = (code: LoginError) => {
+    const res = NextResponse.redirect(`${base}${loginUrl({ error: code })}`);
+    res.cookies.delete({ name: OAUTH_COOKIE, path: API.authGoogle });
     return res;
   };
 
@@ -42,15 +43,15 @@ export async function GET(req: Request) {
   if (!user) return fail("conflict");
 
   if (user.status !== "approved") {
-    const res = NextResponse.redirect(`${base}/login?status=${user.status}`);
-    res.cookies.delete({ name: OAUTH_COOKIE, path: "/api/auth/google" });
+    const res = NextResponse.redirect(`${base}${loginUrl({ status: user.status as LoginStatus })}`);
+    res.cookies.delete({ name: OAUTH_COOKIE, path: API.authGoogle });
     res.cookies.delete(SESSION_COOKIE);
     return res;
   }
 
   if (user.role === "admin") seedWelcomeIfEmpty(user.id);
-  const res = NextResponse.redirect(`${base}/`);
-  res.cookies.delete({ name: OAUTH_COOKIE, path: "/api/auth/google" });
+  const res = NextResponse.redirect(`${base}${ROUTES.home}`);
+  res.cookies.delete({ name: OAUTH_COOKIE, path: API.authGoogle });
   res.cookies.set(
     SESSION_COOKIE,
     await signSession({ uid: user.id, name: user.name, email: user.email }),

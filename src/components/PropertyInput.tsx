@@ -4,6 +4,7 @@ import { Check, ExternalLink } from "lucide-react";
 import { api, newClientId, refreshPage, useMembers } from "@/lib/client";
 import { OPTION_COLORS, type Property, type SelectOption } from "@/lib/types";
 import { Popover } from "./ui";
+import { API } from "@/lib/routes";
 
 /** セレクトの選択肢を追加し、データベースのプロパティ定義を更新 */
 export async function addSelectOption(databaseId: string, properties: Property[], propId: string, name: string) {
@@ -11,7 +12,7 @@ export async function addSelectOption(databaseId: string, properties: Property[]
   const used = prop?.options?.length ?? 0;
   const option: SelectOption = { id: newClientId(), name, color: OPTION_COLORS[(used + 1) % OPTION_COLORS.length] };
   const next = properties.map((p) => (p.id === propId ? { ...p, options: [...(p.options ?? []), option] } : p));
-  await api(`/api/pages/${databaseId}`, { method: "PATCH", body: { properties: next } });
+  await api(API.page(databaseId), { method: "PATCH", body: { properties: next } });
   refreshPage(databaseId);
   return option;
 }
