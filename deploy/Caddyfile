@@ -1,0 +1,27 @@
+# TeamNotes 用の Caddy の設定
+#
+# 設置:  sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#        sudo systemctl reload caddy
+#
+# 1行目のドメインを本番のドメインに書き換えてください。
+# DNS の A レコードがこのサーバーを向いていれば、HTTPS の証明書（Let's Encrypt）は自動で取得・更新されます。
+
+notes.example.com {
+	# 圧縮して転送量を減らす
+	encode zstd gzip
+
+	# セキュリティ関連のヘッダー
+	header {
+		# 以後このドメインには HTTPS でしか接続させない
+		Strict-Transport-Security "max-age=31536000"
+		# 他のサイトに iframe で埋め込ませない（クリックジャッキング対策）
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# サーバーの種類を隠す
+		-Server
+	}
+
+	# アプリ（127.0.0.1:3000）へ中継
+	reverse_proxy 127.0.0.1:3000
+}

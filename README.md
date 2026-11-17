@@ -70,6 +70,17 @@ http://localhost:3000 を開き、`ADMIN_EMAILS` のアカウントで「Google�
 
 `ADMIN_EMAILS` に書いた管理者は画面から変更できません（`.env` を編集して再起動）。画面から管理者にした人は、ほかの管理者が解除できます。
 
+## 本番サーバーへのデプロイ
+
+VPS へのデプロイ手順は [docs/deploy.md](docs/deploy.md) にまとめています。設定ファイルとスクリプトは `deploy/` にあります。
+
+| ファイル | 内容 |
+| --- | --- |
+| `deploy/notion-clone.service` | systemd の設定（自動起動・異常終了時の再起動） |
+| `deploy/Caddyfile` | HTTPS 化と中継の設定 |
+| `deploy/backup.sh` | データベースのバックアップ（アプリを止めずに実行可、14日分を保存） |
+| `deploy/update.sh` | 更新（バックアップ → git pull → ビルド → 再起動 → 起動確認） |
+
 ## チームで使う（本番起動）
 
 ```bash
