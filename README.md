@@ -29,6 +29,7 @@ Next.js + SQLite で動く、セルフホスト型の Notion 類似アプリで�
 1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（既存のものでも可）
 2. 「API とサービス」→「OAuth 同意画面」を設定
    - ユーザーの種類は「外部」（Google Workspace の社内だけで使うなら「内部」も可）
+   - ブランディングのプライバシーポリシーには `https://<あなたのドメイン>/privacy` を指定できます（ログイン不要で表示されます）
    - 「外部」でテスト中のままだと、登録したテストユーザーしかログインできません。チームで使う場合は「アプリを公開」にしてください（openid / email / profile のみなので Google の審査は不要です）
 3. 「認証情報」→「認証情報を作成」→「OAuth クライアント ID」
    - アプリケーションの種類: **ウェブ アプリケーション**
@@ -52,6 +53,7 @@ cp .env.example .env
 | `APP_URL` | アプリのURL。ローカルは `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 手順1で控えた値 |
 | `ADMIN_EMAILS` | 管理者の Gmail / Google アカウントのアドレス（カンマ区切りで複数可） |
+| `PRIVACY_OPERATOR_NAME` / `PRIVACY_CONTACT_EMAIL` / `PRIVACY_EFFECTIVE_DATE` | プライバシーポリシー（`/privacy`）に表示する運営者名・連絡先・制定日 |
 
 ```bash
 npm run dev

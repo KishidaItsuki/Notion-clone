@@ -1,7 +1,8 @@
 "use client";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { API, type LoginError, type LoginStatus } from "@/lib/routes";
+import Link from "next/link";
+import { API, ROUTES, type LoginError, type LoginStatus } from "@/lib/routes";
 
 const MESSAGES: Record<LoginStatus | LoginError, { tone: "info" | "error"; title: string; body: string }> = {
   pending: {
@@ -62,6 +63,11 @@ function LoginInner() {
           初めての方は、ログインすると参加申請になります。
           <br />
           管理者が承認すると利用できるようになります。
+        </p>
+        <p className="mt-4 text-center text-xs">
+          <Link href={ROUTES.privacy} className="text-muted underline hover:text-ink">
+            プライバシーポリシー
+          </Link>
         </p>
       </div>
     </main>

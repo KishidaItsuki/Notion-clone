@@ -11,6 +11,7 @@ export const ROUTES = {
   home: "/",
   login: "/login",
   admin: "/admin",
+  privacy: "/privacy",
   page: (id: string) => `/p/${id}`,
 } as const;
 
@@ -50,7 +51,7 @@ export const API = {
 } as const;
 
 /** 未ログインでもアクセスできるパス（前方一致） */
-export const PUBLIC_PATH_PREFIXES: readonly string[] = [ROUTES.login, API.authPrefix];
+export const PUBLIC_PATH_PREFIXES: readonly string[] = [ROUTES.login, ROUTES.privacy, API.authPrefix];
 
 export function isPublicPath(pathname: string) {
   return PUBLIC_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
