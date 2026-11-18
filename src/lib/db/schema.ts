@@ -1,9 +1,12 @@
 // テーブル定義はこのファイルだけに書く（唯一の正）。
 // 変更したら `npm run db:generate` でマイグレーション（drizzle/ 配下の SQL）を作成し、Git にコミットする。
 // アプリ起動時に未適用のマイグレーションが自動で実行される（src/lib/db/index.ts）。
-import { sqliteTable, text, real, integer, index, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, real, integer, index, uniqueIndex, primaryKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
+/** システム上の権限。admin はメンバー・ロール・ページ権限を管理でき、すべてのページを閲覧・編集できる */
 export type UserRole = "admin" | "member";
+/** ページに対するアクセスレベル（none < view < edit） */
+export type AccessLevel = "none" | "view" | "edit";
 /** pending: 承認待ち / approved: 利用可 / rejected: 却下 / disabled: 利用停止 */
 export type UserStatus = "pending" | "approved" | "rejected" | "disabled";
 
@@ -51,6 +54,13 @@ export const pages = sqliteTable(
     viewConfig: text("view_config").notNull().default("{}"),
     /** 行: プロパティ値（JSON {propId: value}） */
     values: text("values").notNull().default("{}"),
+    /**
+     * アクセス権限の設定
+     * - null: 親ページ（行の場合はデータベース）の設定を引き継ぐ。最上位なら全員が編集可
+     * - "none" | "view" | "edit": このページで個別に設定する。値は「全員」に与えるレベルで、
+     *   ロールごとのレベルは page_permissions に保存する
+     */
+    access: text("access").$type<AccessLevel>(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
     trashRootId: text("trash_root_id"),
     createdById: text("created_by_id").references(() => users.id, { onDelete: "set null" }),
@@ -80,5 +90,44 @@ export const favorites = sqliteTable(
   (t) => [uniqueIndex("favorites_user_page_idx").on(t.userId, t.pageId)],
 );
 
+/** 管理者が自由に作成するロール（部署・プロジェクトなど） */
+export const roles = sqliteTable("roles", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull().default(""),
+  color: text("color").notNull().default("gray"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** ユーザーとロールの対応（1人に複数のロールを付けられる） */
+export const userRoles = sqliteTable(
+  "user_roles",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    roleId: text("role_id")
+      .notNull()
+      .references(() => roles.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.roleId] }), index("user_roles_role_idx").on(t.roleId)],
+);
+
+/** ページごとの、ロールに与えるアクセスレベル（pages.access が null 以外のページでのみ有効） */
+export const pagePermissions = sqliteTable(
+  "page_permissions",
+  {
+    pageId: text("page_id")
+      .notNull()
+      .references(() => pages.id, { onDelete: "cascade" }),
+    roleId: text("role_id")
+      .notNull()
+      .references(() => roles.id, { onDelete: "cascade" }),
+    level: text("level").$type<Exclude<AccessLevel, "none">>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.pageId, t.roleId] }), index("page_permissions_role_idx").on(t.roleId)],
+);
+
 export type PageRow = typeof pages.$inferSelect;
+export type RoleRow = typeof roles.$inferSelect;
 export type UserRow = typeof users.$inferSelect;

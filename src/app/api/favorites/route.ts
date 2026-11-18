@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getPageOr404, newId, withUser } from "@/lib/server";
+import { createAccessResolver, requireAccess } from "@/lib/permissions";
 
 /** お気に入りの切り替え（ユーザーごと） */
 export const POST = withUser(async (req, user) => {
   const { pageId, favorite } = (await req.json()) as { pageId: string; favorite: boolean };
   getPageOr404(pageId);
+  requireAccess(createAccessResolver(user), pageId, "view");
   const where = and(eq(schema.favorites.userId, user.id), eq(schema.favorites.pageId, pageId));
   if (favorite) {
     if (!db.select().from(schema.favorites).where(where).get()) {

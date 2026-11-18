@@ -3,21 +3,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MoreHorizontal, RotateCcw, Smile, Star, Trash2 } from "lucide-react";
-import {
-  ApiError,
-  api,
-  displayTitle,
-  refreshTree,
-  setFavorite,
-  trashPage,
-  updatePage,
-  usePage,
-} from "@/lib/client";
+import { Eye, Lock, MoreHorizontal, RotateCcw, Smile, Star, Trash2 } from "lucide-react";
+import { ApiError, api, displayTitle, refreshTree, setFavorite, trashPage, updatePage, usePage } from "@/lib/client";
 import type { PageDetail } from "@/lib/types";
 import { EmojiPicker, MenuItem, PageIcon, Popover, formatDate } from "./ui";
 import { DatabaseView } from "./DatabaseView";
 import { RowProperties } from "./RowProperties";
+import { PermissionsModal } from "./PermissionsModal";
 import { API, ROUTES } from "@/lib/routes";
 
 const Editor = dynamic(() => import("./Editor"), {
@@ -52,7 +44,10 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
   const pendingBlocks = useRef<unknown[] | null>(null);
   const contentTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const titleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const readOnly = !!page.deletedAt;
+  const canEdit = page.permission.level === "edit";
+  // ゴミ箱にあるページと、閲覧のみの権限のページは編集できない
+  const readOnly = !!page.deletedAt || !canEdit;
+  const [permOpen, setPermOpen] = useState(false);
 
   // 他メンバーの変更を取り込む（自分が未保存の編集をしていない時だけ）
   useEffect(() => {
@@ -179,7 +174,10 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
           {page.breadcrumbs.map((c, i) => (
             <span key={c.id} className="flex min-w-0 items-center gap-1">
               {i > 0 && <span className="text-muted">/</span>}
-              <Link href={ROUTES.page(c.id)} className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-hover">
+              <Link
+                href={ROUTES.page(c.id)}
+                className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-hover"
+              >
                 <PageIcon icon={c.id === page.id ? page.icon : c.icon} type={c.type} />
                 <span className="max-w-40 truncate">{displayTitle(c.id === page.id ? title : c.title)}</span>
               </Link>
@@ -195,6 +193,32 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
                 ? `${page.updatedBy} が ${formatDate(page.updatedAt)} に編集`
                 : ""}
         </span>
+        {!canEdit && (
+          <span
+            className="flex items-center gap-1 rounded bg-hover px-2 py-0.5 text-xs text-muted"
+            title="このページは閲覧のみです"
+          >
+            <Eye size={13} /> 閲覧のみ
+          </span>
+        )}
+        {page.permission.canManage ? (
+          <button
+            title="アクセス権限"
+            onClick={() => setPermOpen(true)}
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-hover ${
+              page.permission.sourceId ? "text-ink" : "text-muted"
+            }`}
+          >
+            <Lock size={14} />
+            <span className="hidden sm:inline">{page.permission.sourceId ? "制限あり" : "アクセス権限"}</span>
+          </button>
+        ) : (
+          page.permission.sourceId && (
+            <span title="閲覧できる人が制限されています" className="text-muted">
+              <Lock size={14} />
+            </span>
+          )
+        )}
         <button
           title={page.isFavorite ? "お気に入りから外す" : "お気に入りに追加"}
           onClick={() => setFavorite(page.id, !page.isFavorite)}
@@ -202,7 +226,11 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
         >
           <Star size={17} className={page.isFavorite ? "fill-yellow-400 text-yellow-500" : "text-muted"} />
         </button>
-        <button title="その他の操作" onClick={(e) => setMoreMenu(e.currentTarget)} className="rounded p-1 text-muted hover:bg-hover">
+        <button
+          title="その他の操作"
+          onClick={(e) => setMoreMenu(e.currentTarget)}
+          className="rounded p-1 text-muted hover:bg-hover"
+        >
           <MoreHorizontal size={18} />
         </button>
         <Popover anchor={moreMenu} onClose={() => setMoreMenu(null)} align="right" width={220}>
@@ -225,15 +253,24 @@ function PageBody({ page, mutate }: { page: PageDetail; mutate: () => void }) {
         </Popover>
       </div>
 
-      {readOnly && (
+      {permOpen && <PermissionsModal pageId={page.id} onClose={() => setPermOpen(false)} />}
+
+      {page.deletedAt && (
         <div className="flex flex-wrap items-center justify-center gap-3 bg-red-500 px-4 py-2 text-sm text-white">
           このページはゴミ箱にあります。
-          <button onClick={restore} className="flex items-center gap-1 rounded border border-white/60 px-2 py-0.5 hover:bg-white/10">
-            <RotateCcw size={14} /> 復元
-          </button>
-          <button onClick={destroy} className="rounded border border-white/60 px-2 py-0.5 hover:bg-white/10">
-            完全に削除
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={restore}
+                className="flex items-center gap-1 rounded border border-white/60 px-2 py-0.5 hover:bg-white/10"
+              >
+                <RotateCcw size={14} /> 復元
+              </button>
+              <button onClick={destroy} className="rounded border border-white/60 px-2 py-0.5 hover:bg-white/10">
+                完全に削除
+              </button>
+            </>
+          )}
         </div>
       )}
 

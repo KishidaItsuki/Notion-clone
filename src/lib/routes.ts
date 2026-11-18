@@ -38,6 +38,7 @@ export const API = {
   pagePermanentDelete: (id: string) => `/api/pages/${id}?permanent=1`,
   pageRestore: (id: string) => `/api/pages/${id}/restore`,
   pageBeacon: (id: string) => `/api/pages/${id}/beacon`,
+  pagePermissions: (id: string) => `/api/pages/${id}/permissions`,
 
   search: (q: string) => `/api/search?q=${encodeURIComponent(q)}`,
   favorites: "/api/favorites",
@@ -48,6 +49,9 @@ export const API = {
   // 管理者
   adminUsers: "/api/admin/users",
   adminUser: (id: string) => `/api/admin/users/${id}`,
+  adminUserRoles: (id: string) => `/api/admin/users/${id}/roles`,
+  adminRoles: "/api/admin/roles",
+  adminRole: (id: string) => `/api/admin/roles/${id}`,
 } as const;
 
 /** 未ログインでもアクセスできるパス（前方一致） */

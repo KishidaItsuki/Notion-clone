@@ -17,6 +17,8 @@ export type ViewConfig = {
   sort?: { propId: string; dir: "asc" | "desc" } | null;
 };
 
+export type AccessLevel = "none" | "view" | "edit";
+
 export type TreeNode = {
   id: string;
   type: "page" | "database";
@@ -24,11 +26,26 @@ export type TreeNode = {
   icon: string | null;
   parentId: string | null;
   position: number;
+  /** ログイン中のユーザーが編集できるか */
+  canEdit: boolean;
+  /** このページで個別に権限が設定されているか（鍵アイコンの表示用） */
+  restricted: boolean;
+};
+
+export type Role = { id: string; name: string; description: string; color: string; memberCount: number };
+
+/** ページのアクセス権限の設定（管理者向け） */
+export type PagePermissionSettings = {
+  /** null: 親の設定を引き継ぐ / それ以外: このページで設定（値は「全員」に与えるレベル） */
+  access: AccessLevel | null;
+  grants: { roleId: string; level: "view" | "edit" }[];
+  /** 引き継いでいる場合の設定元（無ければ最上位まで設定なし＝全員が編集可） */
+  inherited: { pageId: string; title: string; access: AccessLevel; grants: { roleId: string; level: "view" | "edit" }[] } | null;
 };
 
 export type Member = { id: string; name: string; email: string; avatarUrl?: string | null };
 
-export type Me = Member & { role: "admin" | "member"; pendingCount: number };
+export type Me = Member & { role: "admin" | "member"; pendingCount: number; roleIds: string[] };
 
 export type AdminUser = {
   id: string;
@@ -38,6 +55,7 @@ export type AdminUser = {
   role: "admin" | "member";
   status: "pending" | "approved" | "rejected" | "disabled";
   fixedAdmin: boolean;
+  roleIds: string[];
   approvedBy: string | null;
   approvedAt: number | null;
   lastLoginAt: number | null;
@@ -75,6 +93,16 @@ export type PageDetail = {
   /** データベースの場合: 行一覧 */
   rows?: RowRecord[];
   isFavorite: boolean;
+  /** ログイン中のユーザーの権限 */
+  permission: {
+    level: "view" | "edit";
+    /** このページで個別に権限が設定されているか */
+    restricted: boolean;
+    /** 権限の設定元（このページ自身、または親）。どこにも設定が無ければ null */
+    sourceId: string | null;
+    /** 権限の設定を変更できるか（管理者のみ） */
+    canManage: boolean;
+  };
 };
 
 export const OPTION_COLORS = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"] as const;

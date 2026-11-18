@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { HttpError, getPageOr404, newId, nextPosition, withUser } from "@/lib/server";
+import { atLeast, createAccessResolver, requireAccess } from "@/lib/permissions";
 import type { Property, TreeNode } from "@/lib/types";
 
-/** サイドバー用: ページツリーとお気に入り */
+/** サイドバー用: ページツリーとお気に入り（閲覧できるものだけ） */
 export const GET = withUser(async (_req, user) => {
-  const tree = db
+  const access = createAccessResolver(user);
+  const all = db
     .select({
       id: schema.pages.id,
       type: schema.pages.type,
@@ -14,11 +16,27 @@ export const GET = withUser(async (_req, user) => {
       icon: schema.pages.icon,
       parentId: schema.pages.parentId,
       position: schema.pages.position,
+      access: schema.pages.access,
     })
     .from(schema.pages)
     .where(and(isNull(schema.pages.deletedAt), isNull(schema.pages.databaseId)))
     .orderBy(asc(schema.pages.position))
-    .all() as TreeNode[];
+    .all();
+
+  const visible = new Set(all.filter((p) => atLeast(access.level(p.id), "view")).map((p) => p.id));
+  const tree: TreeNode[] = all
+    .filter((p) => visible.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      type: p.type as TreeNode["type"],
+      title: p.title,
+      icon: p.icon,
+      // 親を閲覧できない場合は、最上位に表示する
+      parentId: p.parentId && visible.has(p.parentId) ? p.parentId : null,
+      position: p.position,
+      canEdit: access.level(p.id) === "edit",
+      restricted: p.access !== null,
+    }));
 
   const favorites = db
     .select({ id: schema.pages.id, title: schema.pages.title, icon: schema.pages.icon, type: schema.pages.type })
@@ -26,7 +44,8 @@ export const GET = withUser(async (_req, user) => {
     .innerJoin(schema.pages, eq(schema.favorites.pageId, schema.pages.id))
     .where(and(eq(schema.favorites.userId, user.id), isNull(schema.pages.deletedAt)))
     .orderBy(asc(schema.favorites.createdAt))
-    .all();
+    .all()
+    .filter((f) => atLeast(access.level(f.id), "view"));
 
   return NextResponse.json({ tree, favorites });
 });
@@ -44,12 +63,15 @@ export const POST = withUser(async (req, user) => {
   const parentId = body.parentId || null;
   const databaseId = body.databaseId || null;
 
+  const access = createAccessResolver(user);
   if (parentId) {
     const parent = getPageOr404(parentId);
+    requireAccess(access, parentId, "edit");
     if (parent.deletedAt) throw new HttpError(400, "親ページはゴミ箱にあります");
   }
   if (databaseId) {
     const dbPage = getPageOr404(databaseId);
+    requireAccess(access, databaseId, "edit");
     if (dbPage.type !== "database") throw new HttpError(400, "データベースではありません");
   }
 

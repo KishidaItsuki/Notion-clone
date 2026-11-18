@@ -13,13 +13,13 @@ export function TrashModal({ onClose }: { onClose: () => void }) {
   const { data, mutate } = useSWR<Item[]>(API.trash, (u: string) => api<Item[]>(u));
 
   const restore = async (id: string) => {
-    await api(API.pageRestore(id), { method: "POST" });
+    await api(API.pageRestore(id), { method: "POST" }).catch((e: Error) => alert(e.message));
     mutate();
     refreshTree();
   };
   const destroy = async (item: Item) => {
     if (!confirm(`「${displayTitle(item.title)}」と配下のページを完全に削除します。元に戻せません。よろしいですか？`)) return;
-    await api(API.pagePermanentDelete(item.id), { method: "DELETE" });
+    await api(API.pagePermanentDelete(item.id), { method: "DELETE" }).catch((e: Error) => alert(e.message));
     mutate();
   };
 

@@ -31,6 +31,8 @@ export const ERROR_MESSAGES = {
   adminOnly: "管理者のみ操作できます",
   notFound: "見つかりません",
   pageNotFound: "ページが見つかりません",
+  cannotViewPage: "このページを閲覧する権限がありません",
+  cannotEditPage: "このページを編集する権限がありません",
   badRequest: "入力が不正です",
   conflict: "他のメンバーがこのページを更新しました",
   server: "サーバーエラーが発生しました",

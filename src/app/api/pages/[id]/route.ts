@@ -12,6 +12,7 @@ import {
   withUser,
 } from "@/lib/server";
 import type { PageDetail, Property, RowRecord, ViewConfig } from "@/lib/types";
+import { atLeast, createAccessResolver, requireAccess } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,8 @@ function userName(id: string | null) {
 export const GET = withUser<Ctx>(async (_req, user, { params }) => {
   const { id } = await params;
   const p = getPageOr404(id);
+  const access = createAccessResolver(user);
+  const level = requireAccess(access, id, "view") as "view" | "edit";
 
   const detail: PageDetail = {
     id: p.id,
@@ -40,12 +43,19 @@ export const GET = withUser<Ctx>(async (_req, user, { params }) => {
     updatedAt: p.updatedAt.getTime(),
     createdBy: userName(p.createdById),
     updatedBy: userName(p.updatedById),
-    breadcrumbs: breadcrumbs(p),
+    // 閲覧できない祖先はパンくずに表示しない
+    breadcrumbs: breadcrumbs(p).filter((c) => c.id === p.id || atLeast(access.level(c.id), "view")),
     isFavorite: !!db
       .select()
       .from(schema.favorites)
       .where(and(eq(schema.favorites.userId, user.id), eq(schema.favorites.pageId, p.id)))
       .get(),
+    permission: {
+      level,
+      restricted: p.access !== null,
+      sourceId: access.sourceOf(p.id),
+      canManage: access.isAdmin,
+    },
   };
 
   if (p.databaseId) {
@@ -60,6 +70,7 @@ export const GET = withUser<Ctx>(async (_req, user, { params }) => {
       .where(and(eq(schema.pages.databaseId, p.id), isNull(schema.pages.deletedAt)))
       .orderBy(asc(schema.pages.position))
       .all()
+      .filter((r) => atLeast(access.level(r.id), "view"))
       .map(
         (r): RowRecord => ({
           id: r.id,
@@ -78,6 +89,8 @@ export const GET = withUser<Ctx>(async (_req, user, { params }) => {
 export const PATCH = withUser<Ctx>(async (req, user, { params }) => {
   const { id } = await params;
   const p = getPageOr404(id);
+  const access = createAccessResolver(user);
+  requireAccess(access, id, "edit");
   const body = (await req.json().catch(() => ({}))) as {
     title?: string;
     icon?: string | null;
@@ -122,6 +135,7 @@ export const PATCH = withUser<Ctx>(async (req, user, { params }) => {
         throw new HttpError(400, "自分自身や子孫ページの中には移動できません");
       }
       const parent = getPageOr404(newParent);
+      requireAccess(access, newParent, "edit");
       if (parent.deletedAt) throw new HttpError(400, "移動先はゴミ箱にあります");
     }
     update.parentId = newParent;
@@ -148,9 +162,10 @@ export const PATCH = withUser<Ctx>(async (req, user, { params }) => {
 });
 
 /** 既定ではゴミ箱へ移動。?permanent=1 で完全削除（ゴミ箱内のみ） */
-export const DELETE = withUser<Ctx>(async (req, _user, { params }) => {
+export const DELETE = withUser<Ctx>(async (req, user, { params }) => {
   const { id } = await params;
   const p = getPageOr404(id);
+  requireAccess(createAccessResolver(user), id, "edit");
   const permanent = new URL(req.url).searchParams.get("permanent") === "1";
 
   if (permanent) {

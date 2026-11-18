@@ -1,6 +1,6 @@
 "use client";
 import useSWR, { mutate } from "swr";
-import type { Me, Member, PageDetail, TreeNode } from "./types";
+import type { Me, Member, PageDetail, Role, TreeNode } from "./types";
 import type { ApiErrorBody } from "./api-error";
 import { API, loginUrl } from "./routes";
 
@@ -49,6 +49,11 @@ export function useMembers() {
 
 export function useMe() {
   return useSWR<Me>(API.me, fetcher<Me>, { refreshInterval: 30000 });
+}
+
+/** ロール一覧（管理者のみ取得できる） */
+export function useRoles(enabled = true) {
+  return useSWR<Role[]>(enabled ? API.adminRoles : null, fetcher<Role[]>);
 }
 
 export const refreshTree = () => mutate(API.pages);

@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { desc, eq, isNotNull, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { withUser } from "@/lib/server";
+import { atLeast, createAccessResolver } from "@/lib/permissions";
 
 /** ゴミ箱: 削除操作の起点になったページのみを返す */
-export const GET = withUser(async () => {
+export const GET = withUser(async (_req, user) => {
+  const access = createAccessResolver(user);
   const items = db
     .select({
       id: schema.pages.id,
@@ -17,6 +19,7 @@ export const GET = withUser(async () => {
     .where(and(isNotNull(schema.pages.deletedAt), eq(schema.pages.trashRootId, schema.pages.id)))
     .orderBy(desc(schema.pages.deletedAt))
     .all()
+    .filter((i) => atLeast(access.level(i.id), "view"))
     .map((i) => ({ ...i, deletedAt: i.deletedAt?.getTime() ?? null }));
   return NextResponse.json(items);
 });

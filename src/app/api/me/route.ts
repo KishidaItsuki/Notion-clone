@@ -12,7 +12,14 @@ export const GET = withUser(async (_req, user) => {
           .where(and(eq(schema.users.status, "pending")))
           .get()?.c ?? 0)
       : 0;
+  const roleIds = db
+    .select({ roleId: schema.userRoles.roleId })
+    .from(schema.userRoles)
+    .where(eq(schema.userRoles.userId, user.id))
+    .all()
+    .map((r) => r.roleId);
   return NextResponse.json({
+    roleIds,
     id: user.id,
     name: user.name,
     email: user.email,

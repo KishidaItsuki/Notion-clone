@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { extractPlainText, getPageOr404, withUser } from "@/lib/server";
+import { createAccessResolver, requireAccess } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -9,6 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const POST = withUser<Ctx>(async (req, user, { params }) => {
   const { id } = await params;
   const p = getPageOr404(id);
+  requireAccess(createAccessResolver(user), id, "edit");
   const body = (await req.json().catch(() => ({}))) as { content?: unknown[] };
   if (!Array.isArray(body.content) || p.deletedAt) return NextResponse.json({ ok: false });
   db.update(schema.pages)

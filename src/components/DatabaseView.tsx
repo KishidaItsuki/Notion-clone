@@ -47,19 +47,28 @@ export function DatabaseView({ page, readOnly }: { page: PageDetail; readOnly: b
   const [filter, setFilter] = useState("");
   const { data: members } = useMembers();
 
+  /** サーバーに送り、失敗したらメッセージを出す。どちらの場合も最新の状態を取り直す */
+  const run = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      mutate(key);
+    }
+  };
+
   // --- 楽観的更新ヘルパー ---
   const optimistic = (fn: (d: PageDetail) => PageDetail) =>
     mutate<PageDetail>(key, (d) => (d ? fn(d) : d), { revalidate: false });
 
   const saveProperties = async (next: Property[]) => {
     optimistic((d) => ({ ...d, properties: next }));
-    await updatePage(page.id, { properties: next });
-    mutate(key);
+    await run(() => updatePage(page.id, { properties: next }));
   };
   const saveView = async (patch: ViewConfig) => {
     optimistic((d) => ({ ...d, viewConfig: { ...d.viewConfig, ...patch } }));
-    await updatePage(page.id, { viewConfig: patch });
-    mutate(key);
+    await run(() => updatePage(page.id, { viewConfig: patch }));
   };
   const patchRow = async (rowId: string, patch: { title?: string; values?: Record<string, unknown> }) => {
     optimistic((d) => ({
@@ -70,17 +79,14 @@ export function DatabaseView({ page, readOnly }: { page: PageDetail; readOnly: b
           : r,
       ),
     }));
-    await updatePage(rowId, { title: patch.title, valuesPatch: patch.values });
-    mutate(key);
+    await run(() => updatePage(rowId, { title: patch.title, valuesPatch: patch.values }));
   };
   const addRow = async (values: Record<string, unknown> = {}) => {
-    await createPage({ databaseId: page.id, values });
-    mutate(key);
+    await run(() => createPage({ databaseId: page.id, values }));
   };
   const deleteRow = async (rowId: string) => {
     optimistic((d) => ({ ...d, rows: d.rows?.filter((r) => r.id !== rowId) }));
-    await trashPage(rowId);
-    mutate(key);
+    await run(() => trashPage(rowId));
   };
 
   // --- フィルタ・並べ替え ---

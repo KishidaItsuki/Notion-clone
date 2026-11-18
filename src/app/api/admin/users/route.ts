@@ -7,6 +7,10 @@ import { isConfiguredAdmin, withAdmin } from "@/lib/server";
 export const GET = withAdmin(async () => {
   const all = db.select().from(schema.users).orderBy(desc(schema.users.createdAt)).all();
   const names = new Map(all.map((u) => [u.id, u.name]));
+  const rolesByUser = new Map<string, string[]>();
+  for (const r of db.select().from(schema.userRoles).all()) {
+    rolesByUser.set(r.userId, [...(rolesByUser.get(r.userId) ?? []), r.roleId]);
+  }
   return NextResponse.json(
     all.map((u) => ({
       id: u.id,
@@ -16,6 +20,7 @@ export const GET = withAdmin(async () => {
       role: u.role,
       status: u.status,
       fixedAdmin: isConfiguredAdmin(u.email),
+      roleIds: rolesByUser.get(u.id) ?? [],
       approvedBy: u.approvedById ? (names.get(u.approvedById) ?? null) : null,
       approvedAt: u.approvedAt?.getTime() ?? null,
       lastLoginAt: u.lastLoginAt?.getTime() ?? null,

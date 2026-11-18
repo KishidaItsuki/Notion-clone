@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { and, desc, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { withUser } from "@/lib/server";
+import { atLeast, createAccessResolver } from "@/lib/permissions";
 
 /** タイトルと本文を対象にした検索。空クエリなら最近更新されたページ */
-export const GET = withUser(async (req) => {
+export const GET = withUser(async (req, user) => {
+  const access = createAccessResolver(user);
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   const escaped = q.replace(/[\\%_]/g, (c) => "\\" + c);
   const pattern = `%${escaped}%`;
@@ -32,8 +34,10 @@ export const GET = withUser(async (req) => {
       ),
     )
     .orderBy(desc(schema.pages.updatedAt))
-    .limit(30)
-    .all();
+    .limit(300)
+    .all()
+    .filter((r) => atLeast(access.level(r.id), "view"))
+    .slice(0, 30);
 
   const lower = q.toLowerCase();
   const results = rows.map((r) => {

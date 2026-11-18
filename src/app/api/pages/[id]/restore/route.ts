@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { HttpError, getPageOr404, withUser } from "@/lib/server";
+import { createAccessResolver, requireAccess } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const POST = withUser<Ctx>(async (_req, _user, { params }) => {
+export const POST = withUser<Ctx>(async (_req, user, { params }) => {
   const { id } = await params;
   const p = getPageOr404(id);
+  requireAccess(createAccessResolver(user), id, "edit");
   if (!p.deletedAt) throw new HttpError(400, "このページはゴミ箱にありません");
 
   // 親（またはデータベース）が既に無い・ゴミ箱にある場合はトップレベルへ戻す

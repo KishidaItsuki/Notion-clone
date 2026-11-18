@@ -13,6 +13,7 @@ import {
   Search,
   Star,
   StarOff,
+  Lock,
   Trash2,
   Users,
 } from "lucide-react";
@@ -98,9 +99,13 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   }, [activeId, data]);
 
   const add = async (type: "page" | "database", parentId: string | null = null) => {
-    const id = await createPage({ type, parentId, title: type === "database" ? "新しいデータベース" : "" });
-    if (parentId) toggle(parentId, true);
-    router.push(ROUTES.page(id));
+    try {
+      const id = await createPage({ type, parentId, title: type === "database" ? "新しいデータベース" : "" });
+      if (parentId) toggle(parentId, true);
+      router.push(ROUTES.page(id));
+    } catch (e) {
+      alert((e as Error).message);
+    }
   };
 
   const onDrop = async (dragId: string, target: TreeNode, pos: DropPos) => {
@@ -314,7 +319,7 @@ function TreeItem({
   return (
     <div>
       <div
-        draggable
+        draggable={node.canEdit}
         onDragStart={(e) => {
           e.dataTransfer.setData("application/x-page-id", node.id);
           e.dataTransfer.effectAllowed = "move";
@@ -345,6 +350,11 @@ function TreeItem({
         <Link href={ROUTES.page(node.id)} className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5">
           <PageIcon icon={node.icon} type={node.type} className="w-5" />
           <span className="truncate">{displayTitle(node.title)}</span>
+          {node.restricted && (
+            <span title="閲覧できる人が制限されています" className="shrink-0 text-muted">
+              <Lock size={11} />
+            </span>
+          )}
         </Link>
         <button
           onClick={(e) => setMenu(e.currentTarget)}
@@ -353,13 +363,15 @@ function TreeItem({
         >
           <MoreHorizontal size={14} />
         </button>
-        <button
-          onClick={() => onAdd(node.id)}
-          className="rounded p-0.5 text-muted opacity-0 hover:bg-black/5 group-hover:opacity-100"
-          aria-label="子ページを追加"
-        >
-          <Plus size={14} />
-        </button>
+        {node.canEdit && (
+          <button
+            onClick={() => onAdd(node.id)}
+            className="rounded p-0.5 text-muted opacity-0 hover:bg-black/5 group-hover:opacity-100"
+            aria-label="子ページを追加"
+          >
+            <Plus size={14} />
+          </button>
+        )}
       </div>
       <Popover anchor={menu} onClose={() => setMenu(null)} width={200}>
         <MenuItem
@@ -371,26 +383,30 @@ function TreeItem({
         >
           {isFav ? "お気に入りから外す" : "お気に入りに追加"}
         </MenuItem>
-        <MenuItem
-          icon={<FilePlus size={14} />}
-          onClick={() => {
-            setMenu(null);
-            onAdd(node.id);
-          }}
-        >
-          子ページを追加
-        </MenuItem>
-        <MenuItem
-          danger
-          icon={<Trash2 size={14} />}
-          onClick={async () => {
-            setMenu(null);
-            await trashPage(node.id);
-            if (activeId === node.id) router.push(ROUTES.home);
-          }}
-        >
-          ゴミ箱へ移動
-        </MenuItem>
+        {node.canEdit && (
+          <>
+            <MenuItem
+              icon={<FilePlus size={14} />}
+              onClick={() => {
+                setMenu(null);
+                onAdd(node.id);
+              }}
+            >
+              子ページを追加
+            </MenuItem>
+            <MenuItem
+              danger
+              icon={<Trash2 size={14} />}
+              onClick={async () => {
+                setMenu(null);
+                await trashPage(node.id);
+                if (activeId === node.id) router.push(ROUTES.home);
+              }}
+            >
+              ゴミ箱へ移動
+            </MenuItem>
+          </>
+        )}
       </Popover>
       {open && (
         <div>
